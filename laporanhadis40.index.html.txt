@@ -1,0 +1,44 @@
+const SHEET_ID = '1vdhaX6hzvyW8-WcBIUHU1IknfeazZRAsWkX7hCh_-2w';
+const FOLDER_ID = '1-uhMosgQ3yNu-O_RxEf73dy98fw1YSMF';
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheets()[0];
+    
+    // 1. Buat Header jika kosong
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["Timestamp", "Nama Program", "Tarikh", "Tempat", "Pautan PDF"]);
+    }
+
+    // 2. Proses PDF
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    
+    // Gunakan HTML lengkap yang dihantar
+    const htmlBody = data.fullHtml;
+    const blob = Utilities.newBlob(htmlBody, 'text/html', 'temp.html');
+    
+    // Simpan sebagai fail PDF
+    const pdfFile = folder.createFile(blob.getAs('application/pdf'))
+                          .setName(data.programName + "_" + new Date().getTime() + ".pdf");
+    
+    const pdfUrl = pdfFile.getUrl();
+
+    // 3. Rekod ke Sheet
+    sheet.appendRow([
+      new Date(),
+      data.programName,
+      data.date,
+      data.location,
+      pdfUrl
+    ]);
+    
+    return ContentService.createTextOutput(JSON.stringify({"result":"success", "url": pdfUrl}))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (f) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error", "error": f.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
